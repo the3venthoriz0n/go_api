@@ -1,36 +1,61 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"net/http"
+
+	"github.com/go-redis/redis/v8"
 )
 
 func main() {
-	fmt.Println("New REST APIs in Go!")
 
-	mux := http.NewServeMux()
+	fmt.Println("GO REDIS")
+	con := context.Background()
 
-	mux.HandleFunc("GET /comment", func(w http.ResponseWriter, r *http.Request) {
-
-		fmt.Fprintf(w, "Return all comments")
-
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
 	})
 
-	mux.HandleFunc("GET /comment/{id}", func(w http.ResponseWriter, r *http.Request) {
-
-		id := r.PathValue("id")
-		fmt.Fprintf(w, "Return a single comment id: %s", id)
-
-	})
-
-	mux.HandleFunc("POST /comment", func(w http.ResponseWriter, r *http.Request) {
-
-		fmt.Fprintf(w, "Post a new comment")
-
-	})
-
-	if err := http.ListenAndServe("localhost:8080", mux); err != nil {
-		fmt.Println(err.Error())
+	type Task struct {
+		ID      string
+		Name    string `json:"name"`
+		Content string `json:"Content"`
+		Date    string `json:"Date"`
 	}
 
+	akID := uuid.NewString()
+	jsonString, err := json.Marshal(Task{
+		ID:      akID,
+		Name:    "Task1",
+		Content: "Do the dishes",
+		Date:    "Today",
+	})
+	if err != nil {
+		fmt.Printf("Failed to marshal: %s", err.Error())
+		return
+	}
+
+	err = client.Set(con, "Task", jsonString, 0).Err()
+	if err != nil {
+		fmt.Printf("Failed to set the value in the redis instance: %s", err.Error())
+		return
+	}
+
+	val, err := client.Get(con, "Task").Result()
+	if err != nil {
+		fmt.Printf("Failed to set the value in the redis instance: %s", err.Error())
+		return
+	}
+
+	ping, err := client.Ping(con).Result()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(ping)
+
+	fmt.Printf("Value retrieved: %s\n", val)
 }
